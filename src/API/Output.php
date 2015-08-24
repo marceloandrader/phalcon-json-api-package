@@ -85,7 +85,7 @@ class Output extends \Phalcon\DI\Injectable
         }
         
         $this->_send($message);
-        return this;
+        return $this;
     }
 
     private function _send($message)
