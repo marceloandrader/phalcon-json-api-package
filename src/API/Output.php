@@ -11,6 +11,7 @@ class Output extends \Phalcon\DI\Injectable
 
     /**
      * default value since we assume everything went just dandy
+     * upto parent class to configure for better code
      */
     private $httpCode = 200;
 
@@ -71,8 +72,10 @@ class Output extends \Phalcon\DI\Injectable
         $message['errors']['title'] = $errorStore->title;
         $message['errors']['code'] = $errorStore->code;
         $message['errors']['detail'] = $errorStore->more;
+        $message['errors']['status'] = $this->httpCode;
         
-        if (isset($errorStore->dev)) {
+        $config = $this->di->get('config');
+        if ($config['application']['debugApp'] == true and isset($errorStore->dev)) {
             $message['errors']['meta']['developer_message'] = $errorStore->dev;
         }
         if (count($errorStore->validationList) > 0) {
@@ -82,7 +85,7 @@ class Output extends \Phalcon\DI\Injectable
         }
         
         $this->_send($message);
-        return $this;
+        return this;
     }
 
     private function _send($message)

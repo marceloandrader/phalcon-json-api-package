@@ -539,7 +539,7 @@ class Entity extends \Phalcon\DI\Injectable
             if ($matchFound == false) {
                 throw new HTTPException("Unkown table prefix supplied in filter.", 500, array(
                     'dev' => "Encountered a table prefix that did not match any known hasOne relationships in the model.",
-                    'internalCode' => '891488651361948131461849'
+                    'code' => '891488651361948131461849'
                 ));
             }
         } else {
@@ -621,7 +621,7 @@ class Entity extends \Phalcon\DI\Injectable
             // can't have an offset w/o an limit
             throw new HTTPException("A bad query was attempted.", 500, array(
                 'dev' => "Encountered an offset clause w/o a limit which is a no-no.",
-                'internalCode' => '894791981'
+                'code' => '894791981'
             ));
         }
         
@@ -726,9 +726,9 @@ class Entity extends \Phalcon\DI\Injectable
             // Check for a bad reference
             if (! isset($baseRecord->$refModelName)) {
                 // TODO throw error here
-                throw new HTTPException("A bad model->relatedModel reference was encountered.", 500, array(
+                throw new HTTPException("A bad relationship reference was encountered.", 500, array(
                     'dev' => "Bad reference was: {$this->model->getModelName()} -> $refModelName",
-                    'internalCode' => '654981091519894'
+                    'code' => '654981091519894'
                 ));
             } else {
                 // harmonize relatedRecords
@@ -1048,14 +1048,14 @@ class Entity extends \Phalcon\DI\Injectable
                     $messageBag->set($message->getMessage());
                 }
                 throw new HTTPException("Error deleting record #$id.", 500, array(
-                    'internalCode' => '66498419846816'
+                    'code' => '66498419846816'
                 ));
             }
         } else {
             // no record found to delete
             throw new HTTPException("Could not find record #$id to delete.", 404, array(
                 'dev' => "No record was found to delete",
-                'internalCode' => '2343467699'
+                'code' => '2343467699'
             )); // Could have link to documentation here.
         }
         

@@ -34,7 +34,7 @@ class SecureController extends BaseController
                 $token = trim(str_ireplace("Token: ", '', $token));
                 if (strlen($token) < 30) {
                     throw new HTTPException("Bad token supplied", 401, array(
-                        'internalCode' => '0273497957'
+                        'code' => '0273497957'
                     ));
                 }
                 
@@ -48,7 +48,7 @@ class SecureController extends BaseController
                 } else {
                     throw new HTTPException("Unauthorized, please authenticate first.", 401, array(
                         'dev' => "Must be authenticated to access.",
-                        'internalCode' => '30945680384502037'
+                        'code' => '30945680384502037'
                     ));
                 }
                 break;
@@ -66,14 +66,14 @@ class SecureController extends BaseController
                 } else {
                     throw new HTTPException("Security False is not loading a valid user.", 401, array(
                         'dev' => "The authenticator isn't loading a valid user.",
-                        'internalCode' => '23749873490704'
+                        'code' => '23749873490704'
                     ));
                 }
                 break;
             
             default:
                 throw new HTTPException("Bad security value supplied", 500, array(
-                    'internalCode' => '280273409724075'
+                    'code' => '280273409724075'
                 ));
                 break;
         }

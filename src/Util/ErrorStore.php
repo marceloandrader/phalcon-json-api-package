@@ -11,37 +11,39 @@ class ErrorStore
 {
 
     /**
-     * array of additional value that can be passed to the exception
-     *
-     * @var array
-     */
-    public $errorArray;
-
-    /**
+     * the basic error message
      *
      * @var string
      */
     public $title = '';
 
     /**
+     * a numerical error code used to track down the error in source code
+     * ie.
+     * 2837493479739457
      *
-     * @var unknown
+     * @var string
      */
     public $code;
 
     /**
+     * additional details over and above the error title
+     * shows up as detail in json response
      *
-     * @var unknown
+     * @var string
      */
     public $more;
 
     /**
+     * internal reporting information when the api is set to debug mode
+     * otherwise this information is not reported to the client
      *
-     * @var unknown
+     * @var string
      */
     public $dev;
 
     /**
+     * a list of phalcon validation objects
      *
      * @var param
      */
