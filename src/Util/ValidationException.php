@@ -38,7 +38,7 @@ class ValidationException extends \Exception
     public function send()
     {
         $output = new \PhalconRest\API\Output();
-        $output->setStatusCode('400', 'Bad Request');        
+        $output->setStatusCode('422', 'Unprocessable Entity');
         $output->sendError($this->errorStore);
         return true;
     }

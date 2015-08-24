@@ -43,7 +43,7 @@ class SecureController extends BaseController
                     // get the security service object
                     $securityService = $this->getDI()->get('securityService');
                     // run security check
-                    $this->securityCheck($securityService);                    
+                    $this->securityCheck($securityService);
                     parent::__construct($parseQueryString);
                 } else {
                     throw new HTTPException("Unauthorized, please authenticate first.", 401, array(
@@ -78,11 +78,11 @@ class SecureController extends BaseController
                 break;
         }
     }
-    
+
     /**
      * This is a method that is to be defined in classes that extend \PhalconRest\API\SecureController
-     * 
-     * @param object $securityService
+     *
+     * @param object $securityService            
      * @return boolean
      */
     protected function securityCheck($securityService)

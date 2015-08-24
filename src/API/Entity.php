@@ -1167,15 +1167,15 @@ class Entity extends \Phalcon\DI\Injectable
             $primaryModel = $model::findFirst($id);
             $primaryModel = $this->loadParentModel($primaryModel, $formData);
             
-//             // TODO this only works with 1 parent so far....
-//             $parentModelName = $model::$parentModel;
-//             if ($parentModelName) {
-//                 $config = $this->getDI()->get('config');
-//                 $modelNameSpace = $config['namespaces']['models'];
-//                 $parentNameSpace = $modelNameSpace . $parentModelName;
-//                 $parentModel = $parentNameSpace::findFirst($id);
-//                 $primaryModel = $this->loadModelValues($parentModel, $formData);
-//             }
+            // // TODO this only works with 1 parent so far....
+            // $parentModelName = $model::$parentModel;
+            // if ($parentModelName) {
+            // $config = $this->getDI()->get('config');
+            // $modelNameSpace = $config['namespaces']['models'];
+            // $parentNameSpace = $modelNameSpace . $parentModelName;
+            // $parentModel = $parentNameSpace::findFirst($id);
+            // $primaryModel = $this->loadModelValues($parentModel, $formData);
+            // }
         }
         
         $result = $this->simpleSave($primaryModel, $formData);
@@ -1213,7 +1213,7 @@ class Entity extends \Phalcon\DI\Injectable
             $parentModel = new $parentNameSpace();
             $finalModel = $this->loadParentModel($parentModel, $object);
             
-            if($this->saveMode == 'update'){
+            if ($this->saveMode == 'update') {
                 $primaryKey = $model->getPrimaryKeyName();
                 $finalModel = $parentModel::findFirst($model->$primaryKey);
             } else {
@@ -1277,7 +1277,8 @@ class Entity extends \Phalcon\DI\Injectable
         // if the save failed, gather errors and return a validation failure
         if ($result == false) {
             throw new ValidationException("Validation Errors Encountered", array(
-                'internalCode' => '7894181864684'
+                'code' => '7894181864684',
+                'dev' => 'entity->simpleSave failed to save model'
             ), $model->getMessages());
         }
         return $model->getPrimaryKeyValue();

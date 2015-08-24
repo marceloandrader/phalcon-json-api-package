@@ -68,15 +68,17 @@ class Output extends \Phalcon\DI\Injectable
     public function sendError(\PhalconRest\Util\ErrorStore $errorStore)
     {
         $message = array();
-        $message['error']['title'] = $errorStore->title;
-        $message['error']['code'] = $errorStore->code;
-        $message['error']['detail'] = $errorStore->more;
+        $message['errors']['title'] = $errorStore->title;
+        $message['errors']['code'] = $errorStore->code;
+        $message['errors']['detail'] = $errorStore->more;
         
         if (isset($errorStore->dev)) {
-            $message['error']['meta']['developer_message'] = $errorStore->dev;
+            $message['errors']['meta']['developer_message'] = $errorStore->dev;
         }
         if (count($errorStore->validationList) > 0) {
-            $message['error']['meta']['validation_list'] = $errorStore->validationList;
+            foreach ($errorStore->validationList as $validation) {
+                $message['errors'][$validation->getField()] = $validation->getMessage();
+            }
         }
         
         $this->_send($message);
