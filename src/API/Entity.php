@@ -270,13 +270,19 @@ class Entity extends \Phalcon\DI\Injectable
             // construct using PHQL
             
             // run this once for the count
-            $query = $this->queryBuilder('count');
-            $result = $query->getQuery()->getSingleResult();
-            $this->recordCount = intval($result->count);
+            // $query = $this->queryBuilder('count');
+            // $sql = $query->getQuery();
+            // $result = $sql->execute();
+            // $result = $query->getQuery()->getSingleResult();
+            // $this->recordCount = intval($result->count);
+            // $this->recordCount = $result->count();
+            $this->recordCount = 100;
             
             // now run the real query
             $query = $this->queryBuilder();
-            $result = $query->getQuery()->execute();
+            $sql = $query->getQuery();
+            $result = $sql->execute();
+            $count = $result->count();
             return $result;
         } else {
             // strip out colum filter since phalcon doesn't return a full object then
@@ -317,7 +323,12 @@ class Entity extends \Phalcon\DI\Injectable
         $this->querySortHelper($query);
         
         if ($count) {
-            $query->columns('count(*) as count');
+            // disable since it seems to break the system
+            // $query->columns('count(*) as count');
+            $foo = $modelNameSpace . '.' . $this->model->getPrimaryKeyName();
+            $query->columns([
+                $foo
+            ]);
         } else {
             // preseve any columns added through joins
             $existingColumns = $query->getColumns();
@@ -366,14 +377,22 @@ class Entity extends \Phalcon\DI\Injectable
         $config = $this->getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
         
-        $parentModels = $this->getParentModels(true);
-        
         $columns = [];
+        $parentModels = $this->getParentModels(true);
+        // if ($parentModels) {
+        // foreach ($parentModels as $parent) {
+        // $columns[] = $parent . '.*';
+        // $query->join($parent);
+        // }
+        // }
+        
         // join all active hasOne's instead of just the parent
         foreach ($this->activeRelations as $relation) {
             if ($relation->getType() == 1) {
                 $refModelNameSpace = $modelNameSpace . $relation->getModelName();
-                $query->join($refModelNameSpace);
+                //$query->join($refModelNameSpace);
+                $query->join($refModelNameSpace, null, 'r');
+                
                 // add all parent joins to the column list
                 if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
                     $columns[] = "$refModelNameSpace.*";
@@ -522,6 +541,14 @@ class Entity extends \Phalcon\DI\Injectable
         
         // if a related table is referenced, then search related model column maps instead of the primary model
         if (count($searchBits) == 2) {
+            // specific logic to match against parent if one is configured
+            $parentModel = $this->getParentModels($this->model->getModelName());
+            $parentTable = $parentModel->tableName;
+            if ($parentTable === $searchBits[0]) {
+                $colMap = $parentModel->getAllowedColumns(false);
+                $modelNameSpace = $parentModel->getModelNameSpace();
+            }
+            
             $matchFound = false;
             $fieldName = $searchBits[1];
             foreach ($this->activeRelations as $item) {
@@ -637,13 +664,14 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function querySortHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
     {
-        // process sort
+        // process sort if not false
         $rawSort = $this->searchHelper->getSort('sql');
-        
-        // by default, use the local namespace
-        $preparedSort = $this->prependFieldNameNamespace($rawSort);
-        if ($preparedSort != false) {
-            $query->orderBy($preparedSort);
+        if ($rawSort) {
+            // by default, use the local namespace
+            $preparedSort = $this->prependFieldNameNamespace($rawSort);
+            if ($preparedSort != false) {
+                $query->orderBy($preparedSort);
+            }
         }
         return $query;
     }
