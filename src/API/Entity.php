@@ -270,19 +270,19 @@ class Entity extends \Phalcon\DI\Injectable
             // construct using PHQL
             
             // run this once for the count
-            // $query = $this->queryBuilder('count');
-            // $sql = $query->getQuery();
-            // $result = $sql->execute();
+            $query = $this->queryBuilder('count');
             // $result = $query->getQuery()->getSingleResult();
-            // $this->recordCount = intval($result->count);
-            // $this->recordCount = $result->count();
-            $this->recordCount = 100;
+            $sql = $query->getQuery();
+            $result = $sql->getSingleResult();
+            
+            $this->recordCount = intval($result->count);
             
             // now run the real query
             $query = $this->queryBuilder();
+            // $result = $query->getQuery()->execute();
             $sql = $query->getQuery();
             $result = $sql->execute();
-            $count = $result->count();
+            
             return $result;
         } else {
             // strip out colum filter since phalcon doesn't return a full object then
@@ -323,12 +323,7 @@ class Entity extends \Phalcon\DI\Injectable
         $this->querySortHelper($query);
         
         if ($count) {
-            // disable since it seems to break the system
-            // $query->columns('count(*) as count');
-            $foo = $modelNameSpace . '.' . $this->model->getPrimaryKeyName();
-            $query->columns([
-                $foo
-            ]);
+            $query->columns('count(*) as count');
         } else {
             // preseve any columns added through joins
             $existingColumns = $query->getColumns();
@@ -377,22 +372,14 @@ class Entity extends \Phalcon\DI\Injectable
         $config = $this->getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
         
-        $columns = [];
         $parentModels = $this->getParentModels(true);
-        // if ($parentModels) {
-        // foreach ($parentModels as $parent) {
-        // $columns[] = $parent . '.*';
-        // $query->join($parent);
-        // }
-        // }
         
+        $columns = [];
         // join all active hasOne's instead of just the parent
         foreach ($this->activeRelations as $relation) {
             if ($relation->getType() == 1) {
                 $refModelNameSpace = $modelNameSpace . $relation->getModelName();
-                //$query->join($refModelNameSpace);
-                $query->join($refModelNameSpace, null, 'r');
-                
+                $query->join($refModelNameSpace);
                 // add all parent joins to the column list
                 if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
                     $columns[] = "$refModelNameSpace.*";
@@ -433,9 +420,8 @@ class Entity extends \Phalcon\DI\Injectable
                 switch ($processedSearchField['queryType']) {
                     case 'and':
                         $fieldName = $this->prependFieldNameNamespace($processedSearchField['fieldName']);
-                        $fieldValue = $processedSearchField['fieldValue'];
-                        $newFieldValue = $this->processFieldValueWildcards($fieldValue);
-                        $operator = $this->determineQueryWhereOperator($newFieldValue);
+                        $operator = $this->determineWhereOperator($processedSearchField['fieldValue']);
+                        $newFieldValue = $this->processFieldValue($processedSearchField['fieldValue'], $operator);
                         $query->andWhere("$fieldName $operator \"$newFieldValue\"");
                         break;
                     
@@ -461,8 +447,8 @@ class Entity extends \Phalcon\DI\Injectable
                         foreach ($fieldNameArray as $fieldName) {
                             $fieldName = $this->prependFieldNameNamespace($fieldName);
                             foreach ($fieldValueArray as $fieldValue) {
-                                $newFieldValue = $this->processFieldValueWildcards($fieldValue);
-                                $operator = $this->determineQueryWhereOperator($newFieldValue);
+                                $operator = $this->determineWhereOperator($fieldValue);
+                                $newFieldValue = $this->processFieldValue($fieldValue, $operator);
                                 $query->orWhere("$fieldName $operator \"$newFieldValue\"");
                             }
                         }
@@ -541,14 +527,6 @@ class Entity extends \Phalcon\DI\Injectable
         
         // if a related table is referenced, then search related model column maps instead of the primary model
         if (count($searchBits) == 2) {
-            // specific logic to match against parent if one is configured
-            $parentModel = $this->getParentModels($this->model->getModelName());
-            $parentTable = $parentModel->tableName;
-            if ($parentTable === $searchBits[0]) {
-                $colMap = $parentModel->getAllowedColumns(false);
-                $modelNameSpace = $parentModel->getModelNameSpace();
-            }
-            
             $matchFound = false;
             $fieldName = $searchBits[1];
             foreach ($this->activeRelations as $item) {
@@ -586,45 +564,105 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
-     * Given a fieldValue, search for the wildcard character and replace with an SQL specific wildcard
-     * character
+     * Given a fieldValue and operator, filter out the operator from the value
+     * ie.
+     * search for the wildcard character and replace with an SQL specific wildcard
+     *
+     * @param string $fieldValue
+     *            a search string
+     * @param string $operator
+     *            the detected field value
+     * @return string
+     */
+    private function processFieldValue($fieldValue, $operator = '=')
+    {
+        switch ($operator) {
+            case '>':
+            case '<':
+                return substr($fieldValue, 1);
+                break;
+            
+            case '>=':
+            case '<=':
+            case '<>':
+            case '!=':
+                return substr($fieldValue, 2);
+                break;
+            
+            case 'LIKE':
+                // process possible wild cards
+                $firstChar = substr($fieldValue, 0, 1);
+                $lastChar = substr($fieldValue, - 1, 1);
+                
+                // process wildcards
+                if ($firstChar == "*") {
+                    $fieldValue = substr_replace($fieldValue, "%", 0, 1);
+                }
+                if ($lastChar == "*") {
+                    $fieldValue = substr_replace($fieldValue, "%", - 1, 1);
+                }
+                return $fieldValue;
+                break;
+            
+            default:
+                return $fieldValue;
+                break;
+        }
+    }
+
+    /**
+     * for a given value, figure out what type of operator should be used
+     *
+     * supported operators are
+     *
+     * presense of >, <=, >=, <, !=, <> means to use them instead of the default
+     * presense of % means use LIKE operator
+     * = is the default operator
+     *
+     * This is determined by the presence of the SQL wildcard character in the fieldValue string
      *
      * @param string $fieldValue            
      * @return string
      */
-    private function processFieldValueWildcards($fieldValue)
+    private function determineWhereOperator($fieldValue)
     {
-        // check for whether we need to deal with wild cards
+        $defaultOperator = '=';
+        
+        // process wildcards at start and end
         $firstChar = substr($fieldValue, 0, 1);
         $lastChar = substr($fieldValue, - 1, 1);
-        $wildcard = "%";
-        
         if (($firstChar == "*") || ($lastChar == "*")) {
-            if ($firstChar == "*") {
-                $fieldValue = substr_replace($fieldValue, "%", 0, 1);
-            }
-            if ($lastChar == "*") {
-                $fieldValue = substr_replace($fieldValue, "%", - 1, 1);
+            return 'LIKE';
+        }
+        
+        // process supported comparision operators
+        $doubleCharacter = substr($fieldValue, 0, 2);
+        // notice how multi character operators are processed first
+        $supportedComparisonOperators = [
+            '<=',
+            '>=',
+            '<>',
+            '!='
+        ];
+        foreach ($supportedComparisonOperators as $operator) {
+            if ($doubleCharacter === $operator) {
+                return $doubleCharacter;
             }
         }
         
-        return $fieldValue;
-    }
-
-    /**
-     * Determine whether a clause should be processed with and '=' operator or with a 'LIKE' operatoer.
-     * This is determined by the presence of the SQL wildcard character in the fieldValue string
-     *
-     * @param string $value            
-     * @return string
-     */
-    private function determineQueryWhereOperator($value)
-    {
-        if (strpos($value, '%') !== false) {
-            return 'LIKE';
-        } else {
-            return '=';
+        // if nothing else was detected, process single character comparisons
+        $supportedComparisonOperators = [
+            '>',
+            '<'
+        ];
+        foreach ($supportedComparisonOperators as $operator) {
+            if ($firstChar === $operator) {
+                return $firstChar;
+            }
         }
+        
+        // nothing special detected, return the standard operator
+        return $defaultOperator;
     }
 
     /**
@@ -664,14 +702,13 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function querySortHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
     {
-        // process sort if not false
+        // process sort
         $rawSort = $this->searchHelper->getSort('sql');
-        if ($rawSort) {
-            // by default, use the local namespace
-            $preparedSort = $this->prependFieldNameNamespace($rawSort);
-            if ($preparedSort != false) {
-                $query->orderBy($preparedSort);
-            }
+        
+        // by default, use the local namespace
+        $preparedSort = $this->prependFieldNameNamespace($rawSort);
+        if ($preparedSort != false) {
+            $query->orderBy($preparedSort);
         }
         return $query;
     }
@@ -1270,6 +1307,11 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function loadModelValues($model, $formData)
     {
+        // no point in proceeding
+        if ($formData == null || $formData == false) {
+            return $model;
+        }
+        
         // loop through all known fields and save matches
         $metaData = $this->getDI()->get('memory');
         // use a colMap to prepare for save
